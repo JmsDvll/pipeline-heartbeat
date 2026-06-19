@@ -1,0 +1,43 @@
+name: Pipeline heartbeat
+
+# Reliable heartbeat for the PRIVATE pipeline hub (JmsDvll/cursor-pipeline).
+#
+# Why this repo is public: GitHub runs scheduled crons far more reliably on
+# public repos than private ones, and public-repo Actions minutes are free.
+# This workflow does nothing but ping the hub Conductor via repository_dispatch
+# on a steady cadence, so the loop never sits stalled for an hour when no other
+# GitHub event happens. The hub Conductor is idempotent and only launches paid
+# work when there is real work to do, so a heartbeat ping is cheap when idle.
+#
+# No secrets are exposed by this repo being public — HUB_DISPATCH_TOKEN is an
+# encrypted Actions secret.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 min — reliable on a public repo
+  workflow_dispatch:
+
+concurrency:
+  group: heartbeat
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Wake the hub Conductor
+        env:
+          HUB_DISPATCH_TOKEN: ${{ secrets.HUB_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "${HUB_DISPATCH_TOKEN}" ]; then
+            echo "HUB_DISPATCH_TOKEN not set — cannot reach hub."; exit 0
+          fi
+          code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${HUB_DISPATCH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/JmsDvll/cursor-pipeline/dispatches \
+            -d '{"event_type":"pipeline-event","client_payload":{"repo":"landfinder","event":"heartbeat"}}')
+          echo "hub dispatch -> HTTP ${code}"
+          [ "${code}" = "204" ] || echo "::warning::hub dispatch returned ${code}"
