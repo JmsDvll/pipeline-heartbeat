@@ -14,7 +14,7 @@ name: Pipeline heartbeat
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # every 15 min — reliable on a public repo
+    - cron: "*/30 * * * *"   # every 30 min — frugal backstop (events drive active work; this just catches idle gaps)
   workflow_dispatch:
 
 concurrency:
