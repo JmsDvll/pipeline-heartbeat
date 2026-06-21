@@ -14,7 +14,7 @@ name: Pipeline heartbeat
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 min — frugal backstop (events drive active work; this just catches idle gaps)
+    - cron: "*/15 * * * *"   # every 15 min — responsive backstop (cheap; the digest is the cost driver, not this)
   workflow_dispatch:
 
 concurrency:
